@@ -19,8 +19,7 @@ const App = () => (
           {navItems.map(({ to, page }) => (
             <Route key={to} path={to} element={page} />
           ))}
-          <Route path="/" element={<CheckboxGridPage />} />
-          <Route path="/complex" element={<Index />} />
+          <Route path="/" element={<Index />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
         </Routes>
