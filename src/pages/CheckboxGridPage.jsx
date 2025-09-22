@@ -10,13 +10,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from 'lucide-react';
 
 const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "유럽", "직할", "캐슬", "해성", "혜윰"];
-const regions = ["수도권", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
+const regions = ["서울/인천/경기", "대전/충청", "광주/전남", "전북", "대구/경북", "부산/울산/경남", "강원", "제주"];
 const companyTypes = {
-  A: [{ name: "보장분석", price: 75000 }],
+  A: [{ name: "보장분석", price: 80000 }],
   B: [
-    { name: "보장분석", price: 75000 },
-    { name: "여성100%", price: 85000 },
-    { name: "실버", price: 50000 },
+    { name: "보장분석/3주납품", price: 75000 },
+    { name: "보장분석/실버", price: 50000 },
+    { name: "보장분석/중장년", price: 85000 },
+    { name: "보장분석/여성100%", price: 80000 },
+    { name: "보장분석/보험료20만원이상", price: 85000 },
+    { name: "보장분석/방문확정", price: 90000 },
+    { name: "보장분석/화재보험", price: 75000 },
   ]
 };
 
@@ -158,26 +162,36 @@ const CheckboxGridPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white p-4">
-      <div className="max-w-4xl mx-auto pt-8">
-        <Card className="border border-gray-300">
-          <CardHeader>
-            <CardTitle className="text-4xl text-center">퍼스트 DB 신청</CardTitle>
-          </CardHeader>
-          <CardContent>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <div className="bg-slate-800 py-20">
+        <div className="max-w-4xl mx-auto text-center px-4">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-100 mb-4">
+            DB신청
+          </h1>
+          <p className="text-lg md:text-xl text-gray-300 font-medium">
+            간편하고 빠른 데이터베이스 신청 서비스
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-4">
+        <div className="max-w-3xl mx-auto pt-8">
+          <Card className="border border-gray-300">
+            <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {/* DB 선택 섹션 */}
               <div className="space-y-6">
-                <h3 className="font-semibold text-lg">DB 선택</h3>
                 
                 {Object.entries(companyTypes).map(([dbType, types]) => (
-                  <Card key={dbType} className="p-4">
-                    <h4 className="font-medium mb-3">{dbType}업체</h4>
+                  <Card key={dbType} className={`p-4 ${dbType === 'A' ? 'border-2 border-red-300 bg-red-25' : 'border-2 border-blue-300 bg-blue-25'}`}>
+                    <h4 className={`font-medium mb-3 text-lg ${dbType === 'A' ? 'text-red-500' : 'text-blue-500'}`}>{dbType}업체</h4>
                     <div className="space-y-4">
                       {types.map(type => (
                         <div key={type.name} className="border rounded-lg p-3">
-                          <div className="font-medium mb-2">
+                          <div className="font-bold mb-2 text-lg">
                             {type.name} ({type.price.toLocaleString()}원)
                           </div>
                           <div className="grid grid-cols-3 gap-1">
@@ -192,7 +206,7 @@ const CheckboxGridPage = () => {
                                       handleCheckboxChange(dbType, type.name, region, checked)
                                     }
                                   />
-                                  <Label htmlFor={key} className="text-sm">{region}</Label>
+                                  <Label htmlFor={key} className="text-base">{region}</Label>
                                 </div>
                               );
                             })}
@@ -207,11 +221,11 @@ const CheckboxGridPage = () => {
               {/* 선택된 항목들 */}
               {selectedItems.length > 0 && (
                 <div className="p-4 border rounded-md space-y-2">
-                    <h3 className="font-semibold">신청 내역</h3>
+                    <h3 className="font-semibold text-lg">신청 내역</h3>
                     {selectedItems.map((item, index) => (
                         <div key={item.id} className="p-3 bg-gray-50 rounded-md space-y-2">
                             {/* 첫 번째 줄: 제품명 */}
-                            <div className="font-medium text-sm">
+                            <div className="font-medium text-base">
                                 {index + 1}. {item.name}
                             </div>
                             {/* 두 번째 줄: 수량 조절, 가격, 삭제 버튼 */}
@@ -228,7 +242,7 @@ const CheckboxGridPage = () => {
                                     <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-l-none" onClick={() => handleQuantityChangeInList(item.id, item.quantity + 1)}>+</Button>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-blue-600">{item.total.toLocaleString()}원</span>
+                                    <span className="font-bold text-blue-600 text-xl">{item.total.toLocaleString()}원</span>
                                     <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
                                         <Trash2 className="h-4 w-4 text-red-500" />
                                     </Button>
@@ -241,7 +255,7 @@ const CheckboxGridPage = () => {
 
               {/* 총 금액 표시 */}
               {selectedItems.length > 0 && (
-                <div className="text-xl font-bold text-right bg-blue-50 p-4 rounded-md border-2 border-blue-200">
+                <div className="text-2xl font-bold text-right bg-blue-50 p-4 rounded-md border-2 border-blue-200">
                   총 금액: {total.toLocaleString()}원
                 </div>
               )}
@@ -251,33 +265,33 @@ const CheckboxGridPage = () => {
                 <div className="space-y-1">
                   <Label htmlFor="name">이름</Label>
                   <Input id="name" name="name" type="text" value={formData.name} onChange={handleApplicantInfoChange} placeholder="한글로 입력하세요" />
-                  {nameEnglishWarning && <p className="text-sm text-yellow-600 mt-1">{nameEnglishWarning}</p>}
-                  {displayErrors.name && <p className="text-sm text-red-500">{displayErrors.name}</p>}
+                  {nameEnglishWarning && <p className="text-base text-yellow-600 mt-1">{nameEnglishWarning}</p>}
+                  {displayErrors.name && <p className="text-base text-red-500">{displayErrors.name}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="affiliation">소속</Label>
                   <Select onValueChange={handleAffiliationChange}><SelectTrigger><SelectValue placeholder="소속을 선택하세요" /></SelectTrigger><SelectContent>{affiliations.map(aff => <SelectItem key={aff} value={aff}>{aff}</SelectItem>)}</SelectContent></Select>
-                  {displayErrors.affiliation && <p className="text-sm text-red-500">{displayErrors.affiliation}</p>}
+                  {displayErrors.affiliation && <p className="text-base text-red-500">{displayErrors.affiliation}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="phone">전화번호</Label>
                   <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleApplicantInfoChange} placeholder="010-0000-0000" />
-                  {displayErrors.phone && <p className="text-sm text-red-500">{displayErrors.phone}</p>}
+                  {displayErrors.phone && <p className="text-base text-red-500">{displayErrors.phone}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="email">이메일</Label>
                   <Input id="email" name="email" type="email" value={formData.email} onChange={handleApplicantInfoChange} placeholder="이메일을 입력하세요" />
-                  {emailKoreanWarning && <p className="text-sm text-yellow-600 mt-1">{emailKoreanWarning}</p>}
-                  {displayErrors.email && <p className="text-sm text-red-500 mt-1">{displayErrors.email}</p>}
+                  {emailKoreanWarning && <p className="text-base text-yellow-600 mt-1">{emailKoreanWarning}</p>}
+                  {displayErrors.email && <p className="text-base text-red-500 mt-1">{displayErrors.email}</p>}
                 </div>
               </div>
 
-              {displayErrors.items && <p className="text-sm text-red-500 text-center">{displayErrors.items}</p>}
+              {displayErrors.items && <p className="text-base text-red-500 text-center">{displayErrors.items}</p>}
 
               <Button type="submit" className="w-full text-white btn-gradient-flow transition-transform duration-300 hover:scale-105" disabled={isSubmitting || selectedItems.length === 0 || !!emailKoreanWarning || !!nameEnglishWarning}>
                 {isSubmitting ? '신청하는 중...' : '신청하기'}
               </Button>
-              {displayErrors.submit && <p className="text-sm text-red-500 text-center">{displayErrors.submit}</p>}
+              {displayErrors.submit && <p className="text-base text-red-500 text-center">{displayErrors.submit}</p>}
             </form>
             <div className="mt-8 flex justify-center">
                 <img 
@@ -294,6 +308,7 @@ const CheckboxGridPage = () => {
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 };

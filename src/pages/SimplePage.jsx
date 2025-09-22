@@ -10,13 +10,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Trash2 } from 'lucide-react';
 
 const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "유럽", "직할", "캐슬", "해성", "혜윰"];
-const regions = ["수도권", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
+const regions = ["수도권(서울,인천,경기)", "대전/충청", "광주/전남", "전북", "대구/경북", "부산/울산/경남", "강원", "제주"];
 const companyTypes = {
-  A: [{ name: "보장분석", price: 75000 }],
+  A: [{ name: "보장분석", price: 80000 }],
   B: [
-    { name: "보장분석", price: 75000 },
-    { name: "여성100%", price: 85000 },
-    { name: "실버", price: 50000 },
+    { name: "보장분석/3주납품", price: 75000 },
+    { name: "보장분석/실버", price: 50000 },
+    { name: "보장분석/중장년", price: 85000 },
+    { name: "보장분석/여성100%", price: 80000 },
+    { name: "보장분석/보험료20만원이상", price: 85000 },
+    { name: "보장분석/방문확정", price: 90000 },
+    { name: "보장분석/화재보험", price: 75000 },
   ]
 };
 
