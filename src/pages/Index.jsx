@@ -158,7 +158,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
                   <AnimatedFormField>
                     <div>
                       <Label htmlFor="phone">연락처</Label>
-                      <Input id="phone" name="phone" placeholder="010-0000-0000" value={applicant.phone} onChange={handleInputChange} />
+                      <Input id="phone" name="phone" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={applicant.phone} onChange={handleInputChange} />
                       {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
                     </div>
                   </AnimatedFormField>
