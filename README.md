@@ -1,4 +1,6 @@
-# Welcome to your GPT Engineer project
+# DB Request Form - v1.1
+
+DB 신청 시스템 (Environment variables configured for Vercel deployment)
 
 ## Project info
 
