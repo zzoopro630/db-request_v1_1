@@ -6,18 +6,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const regions = ["서울/인천/경기", "대전/충청", "광주/전남", "전북", "대구/경북", "부산/울산/경남", "강원", "제주"];
 const companyTypes = {
-  A: [{ name: "보장분석", price: 80000 }],
+  A: [{ name: "[보장분석] 일반", price: 85000, description: "'보장분석', '방문상담', '숨은보험금 찾기', '환급금 안내' 등 다양한 컨셉으로 고객과 접촉하여 확보한 DB"  }],
   B: [
-    { name: "3주납품", price: 75000 },
-    { name: "실버", price: 50000 },
-    { name: "중장년", price: 85000 },
-    { name: "여성100%", price: 80000 },
-    { name: "보험료20만원이상", price: 85000 },
-    { name: "방문확정", price: 90000 },
-    { name: "화재보험", price: 75000 },
+    { name: "[보장분석] 3주납품", price: 80000, description: "64~89년생 / 다양한 연령대 / 3주 이내 납품 완료 DB" },
+    { name: "[보장분석] 실버", price: 55000, description: "57~63년생 / 보험 니즈 높은 고연령대 DB"  },
+    { name: "[보장분석] 중장년", price: 90000, description: "64~79년생 / 보험 관심 높은 중장년 DB"  },
+    { name: "[보장분석] 여성100%", price: 85000, description: "64~89년생 / 보험 니즈가 높은 여성 DB"  },
+    { name: "[보장분석] 보험료20만원이상", price: 90000, description: "64~89년생 / 보험료 20만원 이상 납입 DB"  },
+    { name: "[보장분석] 방문확정", price: 95000, description: "64~89년생 / 시간,장소 약속이 확정된 DB"  },
+    { name: "[보장분석] 화재보험", price: 80000, description: "64~89년생 / 화재보험(1년/일반화재) 무료가입 멘트로 확보된 DB / 보험료 1만원 설계사 부담"  },
   ]
 };
 
@@ -64,25 +70,58 @@ const CheckboxList = React.memo(({ selections, onCheckboxChange }) => {
   return (
     <div className="space-y-6">
       {Object.entries(companyTypes).map(([dbType, types]) => (
-        <Card key={dbType} className={`p-4 ${dbType === 'A' ? 'border-2 border-red-300 bg-red-25' : 'border-2 border-blue-300 bg-blue-25'}`}>
-          <h4 className={`font-medium mb-3 text-lg ${dbType === 'A' ? 'text-red-500' : 'text-blue-500'}`}>{dbType}업체</h4>
-          <div className="space-y-4">
-            {types.map(type => (
-              <div key={type.name} className="border rounded-lg p-3">
-                <div className="font-bold mb-2 text-lg">{type.name} ({type.price.toLocaleString()}원)</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {regions.map(region => {
-                    const key = `${dbType}-${type.name}-${region}`;
-                    return (
-                      <div key={region} className="flex items-center space-x-1">
-                        <Checkbox id={key} checked={selections[key] || false} onCheckedChange={(checked) => onCheckboxChange(dbType, type.name, region, checked, type)} />
-                        <Label htmlFor={key} className="text-sm font-medium">{region}</Label>
-                      </div>
-                    );
-                  })}
-                </div>
+        <Card key={dbType} className="overflow-hidden rounded-lg border-2 border-blue-200">
+          <div className="p-4 bg-brand-blue">
+            <div className="flex items-center">
+              <h4 className="font-medium text-lg text-white">{dbType}업체</h4>
+              {dbType === 'B' && <span className="ml-2 text-sm text-yellow-400 font-medium">(90년생은 납품하지 않습니다.)</span>}
+            </div>
+          </div>
+          <div className="p-4 bg-white">
+            {dbType === 'A' && (
+              <div className="text-sm text-gray-700 bg-gray-100 p-3 rounded-md mb-4">
+                <p className="font-bold">A/S 불가 항목</p>
+                <p>- 단박 거절: 통화 연결 후 바로 상담을 거절하는 경우</p>
+                <p>- 통화 후 부재: 고객과 1번이라도 통화가 된 이후의 장기 부재</p>
+                <p>- 약속 후 노쇼(No-show): 방문 약속을 잡았으나 연락이 두절되거나 고객이 나타나지 않는 경우</p>
+                <p>- 특정 목적 거절: '숨은 보험금/환급금 찾기'만 원한다며 보장 분석을 거절하는 경우</p><br />
+                <p className="text-blue-600">*A업체는 조건에 따라 '장기부재' AS를 승인하고 있습니다.<br />
+                  시간대를 다르게 하여 하루 2회, 총 2일간 연락이 되지 않을 경우 (통화 내역 첨부 필수)
+                </p>
               </div>
-            ))}
+            )}
+            {dbType === 'B' && (
+              <div className="text-sm text-gray-700 bg-gray-100 p-3 rounded-md mb-4">
+                 <p className="font-bold">A/S 불가 항목</p>
+                 <p>- 장기 부재 및 단박 거절</p>
+                 <p>- 상담(TA) 중 고객과 약속이 잡힌 경우</p>
+              </div>
+            )}
+            <Accordion type="multiple" className="w-full">
+              {types.map(type => (
+                <AccordionItem value={type.name} key={type.name}>
+                  <AccordionTrigger>
+                    <div className="text-left">
+                      <div className="font-bold text-lg">{type.name} ({type.price.toLocaleString()}원)</div>
+                      {type.description && <p className="text-sm text-gray-600 mt-1">{type.description}</p>}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-2">
+                      {regions.map(region => {
+                        const key = `${dbType}-${type.name}-${region}`;
+                        return (
+                          <div key={region} className="flex items-center space-x-1 p-2 rounded-md hover:bg-gray-100">
+                            <Checkbox id={key} checked={selections[key] || false} onCheckedChange={(checked) => onCheckboxChange(dbType, type.name, region, checked, type)} />
+                            <Label htmlFor={key} className="text-sm font-medium">{region}</Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </Card>
       ))}
@@ -124,9 +163,11 @@ const CheckboxGridPage = ({
       <div className="bg-slate-800 py-12 mb-8">
         <div className="max-w-7xl mx-auto text-center px-4">
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-100 mb-4">DB 신청</h1>
-          <p className="text-lg text-gray-300 font-medium">간편하고 빠른 데이터베이스 신청 서비스</p>
+          <p className="text-lg text-gray-300 font-medium">간편하고 빠른 DB 신청 서비스</p>
         </div>
       </div>
+
+      <p className="text-sm text-center text-gray-600 mb-8">» 상품을 클릭하시면 지역을 선택하실 수 있습니다.</p>
 
       <div className="max-w-7xl mx-auto lg:flex lg:gap-8 px-4 lg:justify-center">
         <motion.div layout className={selectedItems.length > 0 ? "lg:w-2/3" : "lg:w-full lg:max-w-3xl"}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import emailjs from '@emailjs/browser';
+
 import CheckboxGridPage from './CheckboxGridPage'; // 1단계 컴포넌트
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "미르", "유럽", "직할", "캐슬", "해성", "혜윰"];
+
 
 const AnimatedFormField = ({ children }) => (
   <motion.div
@@ -32,7 +33,7 @@ const AnimatedFormField = ({ children }) => (
 );
 
 // 2단계: 신청자 정보 입력 컴포넌트
-const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuantityChange }) => {
+const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuantityChange, onRemoveItem }) => {
   const [applicant, setApplicant] = useState({ name: "", affiliation: "", phone: "010-", email: "" });
   const [errors, setErrors] = useState({});
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -81,11 +82,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
     setErrors(prev => ({...prev, [name]: error }));
   };
 
-  const handleAffiliationChange = (value) => {
-    setApplicant((prev) => ({ ...prev, affiliation: value }));
-    const error = validateField('affiliation', value);
-    setErrors(prev => ({...prev, affiliation: error }));
-  };
+
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -116,10 +113,16 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-r-none" onClick={() => onQuantityChange(item.id, item.quantity - 1)}>-</Button>
-                      <Input type="number" value={item.quantity} onChange={(e) => onQuantityChange(item.id, e.target.value)} className="w-16 h-8 text-center rounded-none border-l-0 border-r-0 [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="0" />
+                      <Input type="number" value={item.quantity} onChange={(e) => onQuantityChange(item.id, e.target.value)} className="w-16 h-8 text-center rounded-none border-l-0 border-r-0 [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" min="1" />
                       <Button type="button" variant="outline" size="icon" className="h-8 w-8 rounded-l-none" onClick={() => onQuantityChange(item.id, item.quantity + 1)}>+</Button>
                     </div>
-                    <div className="font-bold text-blue-600 text-lg">{item.total.toLocaleString()}원</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-gray-500">단가: {item.price.toLocaleString()}원</span>
+                        <span className="font-bold text-blue-600 text-base">{item.total.toLocaleString()}원</span>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => onRemoveItem(item.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -143,10 +146,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
                   <AnimatedFormField>
                     <div>
                       <Label htmlFor="affiliation">소속</Label>
-                      <Select onValueChange={handleAffiliationChange} value={applicant.affiliation}>
-                        <SelectTrigger id="affiliation"><SelectValue placeholder="소속을 선택하세요" /></SelectTrigger>
-                        <SelectContent side="top">{affiliations.map(aff => <SelectItem key={aff} value={aff}>{aff}</SelectItem>)}</SelectContent>
-                      </Select>
+                      <Input id="affiliation" name="affiliation" placeholder="소속을 입력하세요" value={applicant.affiliation} onChange={handleInputChange} />
                       {errors.affiliation && <p className="text-sm text-red-500 mt-1">{errors.affiliation}</p>}
                     </div>
                   </AnimatedFormField>
@@ -222,10 +222,12 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
 
 // 3단계: 감사 페이지 컴포넌트
 const OrderConfirmationPage = ({ onRestart }) => (
-  <div className="max-w-2xl mx-auto text-center">
-    <div className="bg-white p-8 rounded-lg shadow-md">
+  <div className="min-h-screen flex items-center justify-center text-center px-4 bg-brand-blue">
+    <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-md">
       <h1 className="text-3xl font-bold text-green-500 mb-4">신청 완료!</h1>
-      <p className="text-lg mb-6">신청이 완료되었습니다. 확인 후 개별 연락드리겠습니다.</p>
+      <p className="text-lg mb-6">신청이 완료되었습니다.
+        <br /> 
+        확인 후 개별 연락드리겠습니다.</p>
       <button onClick={onRestart} className="bg-blue-500 text-white px-8 py-3 rounded-lg shadow-lg hover:bg-blue-600">
         새로 신청하기
       </button>
@@ -250,7 +252,7 @@ const Index = () => {
   };
 
   const handleQuantityChange = (id, newQuantity) => {
-    const quantity = Math.max(0, parseInt(newQuantity, 10) || 0);
+    const quantity = Math.max(1, parseInt(newQuantity, 10) || 1);
     setSelectedItems(prevItems => 
         prevItems.map(item => 
             item.id === id ? { ...item, quantity, total: quantity * item.price } : item
@@ -331,23 +333,30 @@ const Index = () => {
     }
     setIsSubmitting(true);
 
-    const templateParams = {
+    const payload = {
       ...applicant,
-      full_address: '', // 템플릿 변수에 맞춤
-      items_summary: selectedItems.map(item => `${item.name} (수량: ${item.quantity}, 금액: ${item.total.toLocaleString()}원)`).join('<br>'), // 템플릿 변수에 맞춤
-      total: selectedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString(), // 템플릿 변수에 맞춤
+      items_summary: selectedItems.map(item => `${item.name} (수량: ${item.quantity}, 금액: ${item.total.toLocaleString()}원)`).join('<br>'),
+      total: selectedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString(),
     };
 
-    const serviceID = 'service_gf7tr94';
-    const templateID = 'template_5wlvuso';
-    const publicKey = 'si6sUamB5hB5f3V6d';
-
     try {
-      await emailjs.send(serviceID, templateID, templateParams, publicKey);
+      const response = await fetch('http://localhost:3001/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`서버에서 오류가 발생했습니다: ${errorText}`);
+      }
+
       setStep(3);
     } catch (error) {
       console.error('Failed to send email:', error);
-      alert(`이메일 발송에 실패했습니다: ${error.text}`);
+      alert(`이메일 발송에 실패했습니다: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -360,7 +369,7 @@ const Index = () => {
   };
 
   return (
-    <div className="px-4 py-8">
+    <div className={step === 3 ? "" : "px-4 py-8"}>
       {step === 1 && (
         <CheckboxGridPage 
           onNext={handleNext} 
@@ -371,7 +380,7 @@ const Index = () => {
           onRemoveItem={handleRemoveItem}
         />
       )}
-      {step === 2 && <ApplicantForm onBack={handleBack} onSubmit={handleSubmit} isSubmitting={isSubmitting} selectedItems={selectedItems} onQuantityChange={handleQuantityChange} />}
+      {step === 2 && <ApplicantForm onBack={handleBack} onSubmit={handleSubmit} isSubmitting={isSubmitting} selectedItems={selectedItems} onQuantityChange={handleQuantityChange} onRemoveItem={handleRemoveItem} />}
       {step === 3 && <OrderConfirmationPage onRestart={handleRestart} />}
     </div>
   );
