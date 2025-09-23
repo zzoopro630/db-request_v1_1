@@ -9,6 +9,7 @@ const app = express();
 const SENDER_EMAIL = process.env.SENDER_EMAIL;
 const SENDER_APP_PASSWORD = process.env.SENDER_APP_PASSWORD;
 const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
+const RECIPIENT_EMAILS = RECIPIENT_EMAIL ? RECIPIENT_EMAIL.split(',').map(email => email.trim()) : [];
 
 // Configure CORS to allow requests from the Vercel deployment and localhost
 app.use(cors({
@@ -33,7 +34,7 @@ app.post('/api/send-email', async (req, res) => {
   // 1. Email to Admin
   const adminMailOptions = {
     from: `"DB 신청폼" <${SENDER_EMAIL}>`,
-    to: RECIPIENT_EMAIL,
+    to: RECIPIENT_EMAILS.join(','),
     subject: `[DB신청] ${name} / ${affiliation} / ${formattedDate}`,
     html: `
       <h2>새로운 DB 신청이 접수되었습니다.</h2>
