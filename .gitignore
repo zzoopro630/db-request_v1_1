@@ -26,3 +26,5 @@ dist-ssr
 
 # Ignored reference directory
 reference/
+# Local environment variables
+.env.local

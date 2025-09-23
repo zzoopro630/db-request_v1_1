@@ -4,15 +4,15 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 
 const app = express();
-const port = 3001;
 
 // IMPORTANT: For production, use environment variables to store sensitive data.
-const SENDER_EMAIL = 'ads.thefin@gmail.com';
-const SENDER_APP_PASSWORD = 'ahcd stkm inhk yeks';
-const RECIPIENT_EMAIL = 'songnakjoo@gmail.com';
+const SENDER_EMAIL = process.env.SENDER_EMAIL;
+const SENDER_APP_PASSWORD = process.env.SENDER_APP_PASSWORD;
+const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
 
+// Configure CORS to allow requests from the Vercel deployment and localhost
 app.use(cors({
-  origin: ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:8081']
+  origin: ['https://db-request-ext.vercel.app', 'http://localhost:5173', 'http://localhost:8081']
 }));
 app.use(bodyParser.json());
 
@@ -25,11 +25,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-app.get('/', (req, res) => {
-  res.send('Hello from the backend!');
-});
-
-app.post('/send-email', async (req, res) => {
+app.post('/api/send-email', async (req, res) => {
+  // Note: The endpoint is now /api/send-email, which matches the filename.
   const { name, affiliation, phone, email, items_summary, total } = req.body;
   const formattedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -95,6 +92,5 @@ app.post('/send-email', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+// Export the app instance for Vercel
+export default app;
