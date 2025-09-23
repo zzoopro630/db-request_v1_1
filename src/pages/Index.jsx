@@ -32,6 +32,9 @@ const AnimatedFormField = ({ children }) => (
   </motion.div>
 );
 
+// 소속 목록
+const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "미르", "유럽", "직할", "캐슬", "해성", "혜윰"];
+
 // 2단계: 신청자 정보 입력 컴포넌트
 const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuantityChange, onRemoveItem }) => {
   const [applicant, setApplicant] = useState({ name: "", affiliation: "", phone: "010-", email: "" });
@@ -80,6 +83,11 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
     
     const error = validateField(name, finalValue);
     setErrors(prev => ({...prev, [name]: error }));
+  };
+
+  const handleAffiliationChange = (value) => {
+    setApplicant(prev => ({ ...prev, affiliation: value }));
+    setErrors(prev => ({ ...prev, affiliation: validateField('affiliation', value) }));
   };
 
 
@@ -146,7 +154,16 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
                   <AnimatedFormField>
                     <div>
                       <Label htmlFor="affiliation">소속</Label>
-                      <Input id="affiliation" name="affiliation" placeholder="소속을 입력하세요" value={applicant.affiliation} onChange={handleInputChange} />
+                      <Select onValueChange={handleAffiliationChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="소속을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {affiliations.map(aff => (
+                            <SelectItem key={aff} value={aff}>{aff}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {errors.affiliation && <p className="text-sm text-red-500 mt-1">{errors.affiliation}</p>}
                     </div>
                   </AnimatedFormField>
