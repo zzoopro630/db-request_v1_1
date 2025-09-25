@@ -164,7 +164,7 @@ const CheckboxGridPage = ({
         <div className="max-w-7xl mx-auto text-center px-4">
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-100 mb-4">DB 신청</h1>
           <p className="text-lg text-gray-300 font-medium">간편하고 빠른 DB 신청 서비스</p>
-          <p class="text-sm text-FFD700-500 mt-2">(퍼스트채널 전용)</p>
+          <p class="text-sm text-[#FFD700] mt-2">(퍼스트채널 전용)</p>
         </div>
       </div>
 
