@@ -33,7 +33,7 @@ const AnimatedFormField = ({ children }) => (
 );
 
 // 소속 목록
-const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "미르", "유럽", "직할", "캐슬", "해성", "혜윰"];
+const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "미르", "베스트", "유럽", "직할", "캐슬", "해성", "혜윰"];
 
 // 2단계: 신청자 정보 입력 컴포넌트
 const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuantityChange, onRemoveItem }) => {
