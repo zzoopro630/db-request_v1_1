@@ -48,9 +48,12 @@ app.post('/api/send-email', async (req, res) => {
       <hr>
       <p><strong>총 합계:</strong> ${total}원</p>
       <hr>
-      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
+      <!-- <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
         <h4 style="margin: 0; font-size: 16px;">DB입금계좌</h4>
         <p style="margin: 5px 0 0; font-size: 14px;">신한 110-372-929005 김도형</p>
+      </div> -->
+      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <p style="margin: 0; font-size: 14px; color: #333; font-weight: bold;">담당자가 수량 확인 및 입금안내 드릴 예정입니다.</p>
       </div>
     `,
   };
@@ -70,9 +73,12 @@ app.post('/api/send-email', async (req, res) => {
       <hr>
       <p><strong>총 합계:</strong> ${total}원</p>
       <hr>
-      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
+      <!-- <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
         <h4 style="margin: 0; font-size: 16px;">DB입금계좌</h4>
         <p style="margin: 5px 0 0; font-size: 14px;">신한 110-372-929005 김도형</p>
+      </div> -->
+      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <p style="margin: 0; font-size: 14px; color: #333; font-weight: bold;">담당자가 수량 확인 및 입금안내 드릴 예정입니다.</p>
       </div>
       <br>
       <p><em>*본 메일은 발신 전용입니다.</em></p>
