@@ -45,12 +45,13 @@ const transporter = nodemailer.createTransport({
 
 app.post('/api/send-email', async (req, res) => {
   // Note: The endpoint is now /api/send-email, which matches the filename.
-  const { name, affiliation, phone, email, items_summary, total } = req.body;
+  const { name, affiliation, phone, email, items_summary, total, items } = req.body;
   const formattedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   // Save to Supabase first (if available)
   if (supabase) {
     try {
+      // Insert main submission
       const { data: submissionData, error: submissionError } = await supabase
         .from('submissions')
         .insert([
@@ -68,10 +69,33 @@ app.post('/api/send-email', async (req, res) => {
         .single();
 
       if (submissionError) {
-        console.error('Error saving to Supabase:', submissionError);
+        console.error('Error saving submission to Supabase:', submissionError);
         // Continue with email sending even if DB save fails
       } else {
         console.log('✅ Submission saved to Supabase:', submissionData.id);
+
+        // Insert individual order items if they exist
+        if (items && items.length > 0) {
+          const orderItems = items.map(item => ({
+            submission_id: submissionData.id,
+            db_type: item.db_type,
+            product_name: item.product_name,
+            region: item.region,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+
+          if (itemsError) {
+            console.error('Error saving order items:', itemsError);
+          } else {
+            console.log('✅ Order items saved:', orderItems.length, 'items');
+          }
+        }
       }
     } catch (dbError) {
       console.error('Database error:', dbError);

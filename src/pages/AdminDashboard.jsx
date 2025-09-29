@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Calendar, Download, Search, Users, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { Calendar, Download, Search, Users, DollarSign, Clock, CheckCircle, Trash2, Eye, Package, TrendingUp } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase client configuration (using anon key for read-only access)
@@ -19,10 +28,17 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [orderItems, setOrderItems] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [monthlyAggregation, setMonthlyAggregation] = useState([]);
+  const [aggregationLoading, setAggregationLoading] = useState(true);
 
   // Fetch submissions from Supabase
   useEffect(() => {
     fetchSubmissions();
+    fetchMonthlyAggregation();
   }, []);
 
   const fetchSubmissions = async () => {
@@ -42,6 +58,147 @@ const AdminDashboard = () => {
     }
   };
 
+  // Helper function to parse items_summary
+  const parseItemsSummary = (itemsSummary) => {
+    const items = [];
+    // Remove HTML tags and normalize the string
+    const cleanText = itemsSummary.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log('Clean text for parsing:', cleanText);
+
+    // Parse HTML summary to extract product info
+    // Example: "A업체 - [보장분석] 일반 (서울/인천/경기) (수량: 1, 금액: 80,000원)"
+    const regex = /([^-]+)\s*-\s*\[([^\]]+)\]\s*([^(]+)\s*\(([^)]+)\)\s*\(수량:\s*(\d+),\s*금액:\s*([\d,]+)원\)/g;
+    let match;
+
+    while ((match = regex.exec(cleanText)) !== null) {
+      const [, dbType, category, productName, region, quantity, amount] = match;
+      const parsedItem = {
+        db_type: dbType.trim(),
+        product_name: `[${category.trim()}] ${productName.trim()}`,
+        region: region.trim(),
+        quantity: parseInt(quantity),
+        total_price: parseInt(amount.replace(/,/g, ''))
+      };
+      console.log('Parsed item:', parsedItem);
+      items.push(parsedItem);
+    }
+
+    console.log('Total parsed items:', items.length);
+    return items;
+  };
+
+  // Fetch monthly aggregation for applications (including legacy submissions)
+  const fetchMonthlyAggregation = async () => {
+    try {
+      setAggregationLoading(true);
+
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+      console.log('Date range for aggregation:', { startOfMonth, endOfMonth });
+
+      // Get all submissions for this month
+      const { data: monthlySubmissions, error: submissionsError } = await supabase
+        .from('submissions')
+        .select('*')
+        .gte('created_at', startOfMonth)
+        .lte('created_at', endOfMonth);
+
+      if (submissionsError) throw submissionsError;
+      console.log('Monthly submissions:', monthlySubmissions);
+
+      // Get order items for CONFIRMED submissions only
+      const { data: orderItemsData, error: orderItemsError } = await supabase
+        .from('order_items')
+        .select(`
+          *,
+          submissions!inner (
+            created_at,
+            status
+          )
+        `)
+        .gte('submissions.created_at', startOfMonth)
+        .lte('submissions.created_at', endOfMonth)
+        .eq('submissions.status', 'confirmed'); // Only confirmed submissions
+
+      if (orderItemsError) throw orderItemsError;
+      console.log('Fetched confirmed order items:', orderItemsData);
+
+      // Group by product and region
+      const aggregated = {};
+
+      // Process order_items data (new format)
+      (orderItemsData || []).forEach(item => {
+        // Ensure consistent key format: remove "업체" if it already exists in db_type
+        const dbTypeClean = item.db_type.endsWith('업체') ? item.db_type : `${item.db_type}업체`;
+        const key = `${dbTypeClean} - ${item.product_name}`;
+        console.log('Order item key:', key);
+
+        if (!aggregated[key]) {
+          aggregated[key] = {};
+        }
+        if (!aggregated[key][item.region]) {
+          aggregated[key][item.region] = {
+            quantity: 0,
+            amount: 0
+          };
+        }
+        aggregated[key][item.region].quantity += item.quantity;
+        aggregated[key][item.region].amount += item.total_price;
+      });
+
+      // Process submissions without order_items (legacy format)
+      const submissionsWithOrderItems = new Set(orderItemsData?.map(item => item.submission_id) || []);
+
+      (monthlySubmissions || []).forEach(submission => {
+        // Only process CONFIRMED submissions that don't have order_items
+        if (submission.status === 'confirmed' && !submissionsWithOrderItems.has(submission.id)) {
+          console.log('Processing confirmed legacy submission:', submission.id, submission.items_summary);
+          const parsedItems = parseItemsSummary(submission.items_summary || '');
+
+          parsedItems.forEach(item => {
+            // Ensure consistent key format: remove "업체" if it already exists in db_type
+            const dbTypeClean = item.db_type.endsWith('업체') ? item.db_type : `${item.db_type}업체`;
+            const key = `${dbTypeClean} - ${item.product_name}`;
+            console.log('Legacy item key:', key);
+
+            if (!aggregated[key]) {
+              aggregated[key] = {};
+            }
+            if (!aggregated[key][item.region]) {
+              aggregated[key][item.region] = {
+                quantity: 0,
+                amount: 0
+              };
+            }
+            aggregated[key][item.region].quantity += item.quantity;
+            aggregated[key][item.region].amount += item.total_price;
+          });
+        }
+      });
+
+      console.log('Final aggregated data:', aggregated);
+
+      // Convert to array format for display
+      const result = Object.entries(aggregated).map(([productName, regions]) => ({
+        productName,
+        regions: Object.entries(regions).map(([regionName, data]) => ({
+          regionName,
+          ...data
+        })),
+        totalQuantity: Object.values(regions).reduce((sum, r) => sum + r.quantity, 0),
+        totalAmount: Object.values(regions).reduce((sum, r) => sum + r.amount, 0)
+      }));
+
+      setMonthlyAggregation(result);
+    } catch (err) {
+      console.error('Error fetching monthly aggregation:', err);
+    } finally {
+      setAggregationLoading(false);
+    }
+  };
+
   // Update submission status
   const updateStatus = async (id, newStatus) => {
     try {
@@ -58,8 +215,132 @@ const AdminDashboard = () => {
           sub.id === id ? { ...sub, status: newStatus } : sub
         )
       );
+
+      // Refresh aggregation when status changes
+      fetchMonthlyAggregation();
     } catch (err) {
       alert('상태 업데이트 실패: ' + err.message);
+    }
+  };
+
+  // Delete submission
+  const deleteSubmission = async (id, submissionName) => {
+    if (!confirm(`"${submissionName}" 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      // First delete related order_items
+      const { error: orderItemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('submission_id', id);
+
+      if (orderItemsError) {
+        console.error('Error deleting order items:', orderItemsError);
+        // Continue with submission deletion even if order_items deletion fails
+      }
+
+      // Then delete the submission
+      const { error } = await supabase
+        .from('submissions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state and refresh aggregation
+      setSubmissions(prev => prev.filter(sub => sub.id !== id));
+      fetchMonthlyAggregation(); // Refresh aggregation data
+      alert('신청이 삭제되었습니다.');
+    } catch (err) {
+      alert('삭제 실패: ' + err.message);
+    }
+  };
+
+  // Fetch order items for a specific submission
+  const fetchOrderItems = async (submissionId) => {
+    try {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('submission_id', submissionId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setOrderItems(data || []);
+    } catch (err) {
+      console.error('Error fetching order items:', err);
+      setOrderItems([]);
+    }
+  };
+
+  // View submission details
+  const viewSubmissionDetails = async (submission) => {
+    setSelectedSubmission(submission);
+    await fetchOrderItems(submission.id);
+  };
+
+  // Checkbox selection functions
+  const handleSelectAll = (checked) => {
+    setSelectAll(checked);
+    if (checked) {
+      setSelectedIds(new Set(filteredSubmissions.map(sub => sub.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id, checked) => {
+    const newSelectedIds = new Set(selectedIds);
+    if (checked) {
+      newSelectedIds.add(id);
+    } else {
+      newSelectedIds.delete(id);
+    }
+    setSelectedIds(newSelectedIds);
+    setSelectAll(newSelectedIds.size === filteredSubmissions.length);
+  };
+
+  // Bulk delete function
+  const bulkDeleteSubmissions = async () => {
+    if (selectedIds.size === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedIds.size}건의 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      // First delete related order_items for all selected submissions
+      const { error: orderItemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .in('submission_id', Array.from(selectedIds));
+
+      if (orderItemsError) {
+        console.error('Error deleting order items:', orderItemsError);
+        // Continue with submission deletion even if order_items deletion fails
+      }
+
+      // Then delete the submissions
+      const { error } = await supabase
+        .from('submissions')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+
+      // Update local state and refresh aggregation
+      setSubmissions(prev => prev.filter(sub => !selectedIds.has(sub.id)));
+      setSelectedIds(new Set());
+      setSelectAll(false);
+      fetchMonthlyAggregation(); // Refresh aggregation data
+      alert(`${selectedIds.size}건의 신청이 삭제되었습니다.`);
+    } catch (err) {
+      alert('일괄 삭제 실패: ' + err.message);
     }
   };
 
@@ -137,7 +418,7 @@ const AdminDashboard = () => {
   if (error) return <div className="flex justify-center items-center min-h-screen text-red-500">오류: {error}</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-full mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">DB 신청 관리 대시보드</h1>
@@ -200,6 +481,71 @@ const AdminDashboard = () => {
         </Card>
       </div>
 
+      {/* Monthly Application Summary */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-xl">이번 달 신청 집계 ({new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })})</CardTitle>
+            <Badge variant="secondary" className="ml-auto">확인된 신청만</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {aggregationLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="text-gray-500">집계 데이터 로딩 중...</div>
+            </div>
+          ) : monthlyAggregation.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p>이번 달 신청 내역이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {monthlyAggregation.map((product, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-semibold text-lg text-gray-900">{product.productName}</h3>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">총 수량</div>
+                      <div className="text-xl font-bold text-blue-600">{product.totalQuantity}개</div>
+                      <div className="text-sm text-gray-600">{product.totalAmount.toLocaleString()}원</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {product.regions.map((region, regionIndex) => (
+                      <div key={regionIndex} className="bg-white p-3 rounded border">
+                        <div className="text-sm font-medium text-gray-700">{region.regionName}</div>
+                        <div className="text-lg font-bold text-gray-900">{region.quantity}개</div>
+                        <div className="text-xs text-gray-500">{region.amount.toLocaleString()}원</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Summary Total */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-blue-900">이번 달 총 신청량</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-900">
+                      {monthlyAggregation.reduce((sum, product) => sum + product.totalQuantity, 0)}개
+                    </div>
+                    <div className="text-blue-700">
+                      {monthlyAggregation.reduce((sum, product) => sum + product.totalAmount, 0).toLocaleString()}원
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex items-center gap-2">
@@ -240,44 +586,71 @@ const AdminDashboard = () => {
       {/* Submissions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>신청 목록 ({filteredSubmissions.length}건)</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>신청 목록 ({filteredSubmissions.length}건)</CardTitle>
+            {selectedIds.size > 0 && (
+              <Button
+                onClick={bulkDeleteSubmissions}
+                variant="destructive"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                선택 삭제 ({selectedIds.size})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full min-w-[1200px] table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청일시</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청자</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총 금액</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청내역</th>
+                  <th className="w-12 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <Checkbox
+                      checked={selectAll}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
+                  <th className="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청일시</th>
+                  <th className="w-52 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청자</th>
+                  <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">총 금액</th>
+                  <th className="w-32 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                  <th className="w-80 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청내역</th>
+                  <th className="w-20 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredSubmissions.map((submission) => (
                   <tr key={submission.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(submission.created_at).toLocaleString('ko-KR')}
+                    <td className="w-12 px-3 py-4 text-center">
+                      <Checkbox
+                        checked={selectedIds.has(submission.id)}
+                        onCheckedChange={(checked) => handleSelectOne(submission.id, checked)}
+                      />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{submission.name}</div>
-                      <div className="text-sm text-gray-500">{submission.affiliation}</div>
-                      <div className="text-sm text-gray-500">{submission.email}</div>
+                    <td className="w-36 px-4 py-4 text-sm text-gray-900">
+                      <div className="truncate">{new Date(submission.created_at).toLocaleDateString('ko-KR')}</div>
+                      <div className="text-xs text-gray-500 truncate">{new Date(submission.created_at).toLocaleTimeString('ko-KR')}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {submission.phone}
+                    <td className="w-52 px-4 py-4">
+                      <div className="text-sm font-medium text-gray-900 truncate">{submission.name}</div>
+                      <div className="text-sm text-gray-500 truncate">{submission.affiliation}</div>
+                      <div className="text-xs text-gray-500 truncate">{submission.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {submission.total_amount.toLocaleString()}원
+                    <td className="w-32 px-4 py-4 text-sm text-gray-900">
+                      <div className="truncate">{submission.phone}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="w-24 px-4 py-4 text-sm font-medium text-gray-900 text-right">
+                      <div className="truncate">{submission.total_amount.toLocaleString()}원</div>
+                    </td>
+                    <td className="w-32 px-4 py-4 text-center">
                       <Select
                         value={submission.status}
                         onValueChange={(value) => updateStatus(submission.id, value)}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger className="w-full h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -287,12 +660,109 @@ const AdminDashboard = () => {
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="w-80 px-4 py-4 text-sm text-gray-900">
                       <div
-                        className="max-w-xs truncate cursor-pointer hover:text-blue-600"
+                        className="truncate cursor-pointer hover:text-blue-600"
                         title={submission.items_summary.replace(/<br>/g, '\n')}
                         dangerouslySetInnerHTML={{ __html: submission.items_summary }}
                       />
+                    </td>
+                    <td className="w-20 px-4 py-4 text-center text-sm font-medium">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => viewSubmissionDetails(submission)}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>신청 상세 정보</DialogTitle>
+                              <DialogDescription>
+                                {selectedSubmission?.name}님의 신청 내역
+                              </DialogDescription>
+                            </DialogHeader>
+                            {selectedSubmission && (
+                              <div className="space-y-6">
+                                {/* Submission Info */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-lg">신청자 정보</CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">이름</label>
+                                      <p>{selectedSubmission.name}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">소속</label>
+                                      <p>{selectedSubmission.affiliation}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">연락처</label>
+                                      <p>{selectedSubmission.phone}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">이메일</label>
+                                      <p>{selectedSubmission.email}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">신청일시</label>
+                                      <p>{new Date(selectedSubmission.created_at).toLocaleString('ko-KR')}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-500">총 금액</label>
+                                      <p className="font-bold text-lg">{selectedSubmission.total_amount.toLocaleString()}원</p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                {/* Order Items */}
+                                <Card>
+                                  <CardHeader>
+                                    <CardTitle className="text-lg">주문 상품 목록</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    {orderItems.length > 0 ? (
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                          <thead className="bg-gray-50">
+                                            <tr>
+                                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">업체</th>
+                                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">상품명</th>
+                                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">지역</th>
+                                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">수량</th>
+                                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">단가</th>
+                                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">총액</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-white divide-y divide-gray-200">
+                                            {orderItems.map((item, index) => (
+                                              <tr key={index}>
+                                                <td className="px-3 py-2 text-sm text-gray-900">{item.db_type}업체</td>
+                                                <td className="px-3 py-2 text-sm text-gray-900">{item.product_name}</td>
+                                                <td className="px-3 py-2 text-sm text-gray-900">{item.region}</td>
+                                                <td className="px-3 py-2 text-sm text-gray-900 text-right">{item.quantity}</td>
+                                                <td className="px-3 py-2 text-sm text-gray-900 text-right">{item.unit_price.toLocaleString()}원</td>
+                                                <td className="px-3 py-2 text-sm font-medium text-gray-900 text-right">{item.total_price.toLocaleString()}원</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-500 text-center py-4">개별 상품 정보가 없습니다.</p>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
                     </td>
                   </tr>
                 ))}

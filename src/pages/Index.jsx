@@ -354,6 +354,15 @@ const Index = () => {
       ...applicant,
       items_summary: selectedItems.map(item => `${item.name} (수량: ${item.quantity}, 금액: ${item.total.toLocaleString()}원)`).join('<br>'),
       total: selectedItems.reduce((sum, item) => sum + item.total, 0).toLocaleString(),
+      items: selectedItems.map(item => ({
+        db_type: item.dbType,
+        product_name: item.name,
+        region: item.region,
+        type: item.type,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.total
+      }))
     };
 
     try {
