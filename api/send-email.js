@@ -5,7 +5,9 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
-import { createClient } from '@supabase/supabase-js';
+
+import { getServiceSupabaseClient } from './lib/supabase.js';
+import { buildAggregation } from './lib/aggregation.js';
 
 const app = express();
 
@@ -15,17 +17,13 @@ const SENDER_APP_PASSWORD = process.env.SENDER_APP_PASSWORD;
 const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
 const RECIPIENT_EMAILS = RECIPIENT_EMAIL ? RECIPIENT_EMAIL.split(',').map(email => email.trim()) : [];
 
-// Supabase configuration
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// Create Supabase client only if environment variables are available
 let supabase = null;
-if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+try {
+  supabase = getServiceSupabaseClient();
   console.log('✅ Supabase client initialized');
-} else {
-  console.log('⚠️ Supabase environment variables not found');
+} catch (error) {
+  console.log('⚠️ Supabase environment variables not found:', error.message);
 }
 
 // Configure CORS to allow requests from the Vercel deployment and localhost
@@ -289,176 +287,18 @@ app.patch('/api/submissions/:id/status', async (req, res) => {
   }
 });
 
-const parseItemsSummary = (itemsSummary = '') => {
-  const items = [];
-  const cleanText = itemsSummary
-    .replace(/<br\s*\/?>(\s*)/gi, ' | ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const regex = /([^-]+)\s*-\s*\[([^\]]+)\]\s*([^(|]+)\s*\(([^)]+)\)\s*\(수량:\s*(\d+),\s*금액:\s*([\d,]+)원\)/g;
-  let match;
-
-  while ((match = regex.exec(cleanText)) !== null) {
-    const [, dbType, category, productName, region, quantity, amount] = match;
-    items.push({
-      db_type: dbType.trim().replace(/업체$/, ''),
-      product_name: `[${category.trim()}] ${productName.trim()}`,
-      region: region.trim(),
-      quantity: parseInt(quantity, 10),
-      total_price: parseInt(amount.replace(/,/g, ''), 10),
-    });
-  }
-
-  return items;
-};
-
-const escapeRegExp = (string = '') => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const stripDbTypePrefix = (name = '', dbType = '') => {
-  if (!name || !dbType) return name?.trim?.() || '';
-  const pattern = new RegExp(`^${escapeRegExp(dbType)}\s*-\s*`, 'i');
-  return name.replace(pattern, '').trim();
-};
-
-const extractCoreProductName = (rawName = '', region = '', dbType = '') => {
-  let name = rawName.trim();
-
-  if (region) {
-    const regionPattern = new RegExp(`\s*\(${escapeRegExp(region.trim())}\)$`);
-    name = name.replace(regionPattern, '').trim();
-  }
-
-  const dbTypeClean = dbType.endsWith('업체') ? dbType : `${dbType}업체`;
-  name = stripDbTypePrefix(name, dbTypeClean);
-
-  const parts = name
-    .split('-')
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .filter((part) => part !== dbType && part !== dbTypeClean && part !== dbType.replace(/업체$/, ''));
-
-  return parts.join(' - ').trim();
-};
-
-const aggregateItems = (items = []) => {
-  const aggregated = {};
-
-  items.forEach((item) => {
-    const dbTypeClean = item.db_type.endsWith('업체') ? item.db_type : `${item.db_type}업체`;
-    const sanitizedName = (item.product_name || '').trim();
-    const coreName = extractCoreProductName(sanitizedName, item.region, item.db_type);
-    const productLabel = coreName ? `${dbTypeClean} - ${coreName}` : dbTypeClean;
-    const key = `${dbTypeClean}__${coreName}`;
-
-    if (!aggregated[key]) {
-      aggregated[key] = {
-        productName: productLabel,
-        regions: {},
-      };
-    }
-
-    if (!aggregated[key].regions[item.region]) {
-      aggregated[key].regions[item.region] = {
-        quantity: 0,
-        amount: 0,
-      };
-    }
-
-    aggregated[key].regions[item.region].quantity += item.quantity;
-    aggregated[key].regions[item.region].amount += item.total_price;
-  });
-
-  return Object.values(aggregated).map(({ productName, regions }) => ({
-    productName,
-    regions: Object.entries(regions).map(([regionName, data]) => ({
-      regionName,
-      ...data,
-    })),
-    totalQuantity: Object.values(regions).reduce((sum, r) => sum + r.quantity, 0),
-    totalAmount: Object.values(regions).reduce((sum, r) => sum + r.amount, 0),
-  }));
-};
-
 app.get('/api/submissions/aggregation', async (req, res) => {
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase not configured' });
   }
 
   try {
-    const now = new Date();
-    const start = req.query.start
-      ? new Date(req.query.start)
-      : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = req.query.end
-      ? new Date(req.query.end)
-      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    const startIso = start.toISOString();
-    const endIso = end.toISOString();
-
-    const { data: confirmedSubmissions, error: submissionsError } = await supabase
-      .from('submissions')
-      .select('id, items_summary, total_amount')
-      .gte('created_at', startIso)
-      .lte('created_at', endIso)
-      .eq('status', 'confirmed');
-
-    if (submissionsError) {
-      console.error('Error fetching confirmed submissions:', submissionsError);
-      return res.status(500).json({ error: 'Failed to fetch submissions' });
-    }
-
-    const submissionIds = confirmedSubmissions.map((submission) => submission.id);
-    let orderItems = [];
-
-    if (submissionIds.length > 0) {
-      const { data: fetchedItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select('*')
-        .in('submission_id', submissionIds);
-
-      if (itemsError) {
-        console.error('Error fetching order items:', itemsError);
-        return res.status(500).json({ error: 'Failed to fetch order items' });
-      }
-
-      orderItems = fetchedItems || [];
-    }
-
-    const submissionsWithItems = new Set(orderItems.map((item) => item.submission_id));
-
-    const legacyItems = confirmedSubmissions
-      .filter((submission) => !submissionsWithItems.has(submission.id))
-      .flatMap((submission) => parseItemsSummary(submission.items_summary));
-
-    const normalizedItems = [
-      ...orderItems.map((item) => ({
-        db_type: item.db_type,
-        product_name: extractCoreProductName(item.product_name, item.region, item.db_type),
-        region: item.region,
-        quantity: item.quantity,
-        total_price: item.total_price,
-      })),
-      ...legacyItems,
-    ];
-
-    const aggregated = aggregateItems(normalizedItems);
-
-    const summary = {
-      totalQuantity: aggregated.reduce((sum, product) => sum + product.totalQuantity, 0),
-      totalAmount: aggregated.reduce((sum, product) => sum + product.totalAmount, 0),
-    };
-
-    return res.status(200).json({
-      period: {
-        start: startIso,
-        end: endIso,
-      },
-      aggregated,
-      summary,
+    const result = await buildAggregation(supabase, {
+      start: req.query.start,
+      end: req.query.end,
     });
+
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Unexpected error building aggregation:', error);
     return res.status(500).json({ error: 'Unexpected server error' });
