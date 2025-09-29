@@ -1,17 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 let cachedClient = null;
 
 export const getServiceSupabaseClient = () => {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Supabase service credentials are not configured');
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  const missingVars = [];
+  if (!supabaseUrl) missingVars.push('SUPABASE_URL');
+  if (!serviceRoleKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (missingVars.length > 0) {
+    throw new Error(`Supabase service credentials are not configured. Missing: ${missingVars.join(', ')}`);
   }
 
   if (!cachedClient) {
-    cachedClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    cachedClient = createClient(supabaseUrl, serviceRoleKey);
   }
 
   return cachedClient;
