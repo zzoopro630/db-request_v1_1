@@ -28,3 +28,4 @@ dist-ssr
 reference/
 # Local environment variables
 .env.local
+.env
