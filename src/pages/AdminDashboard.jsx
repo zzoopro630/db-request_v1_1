@@ -21,6 +21,18 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const resolveApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  if (import.meta.env.DEV) return 'http://localhost:3001';
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  return '';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+
 const AdminDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,142 +70,23 @@ const AdminDashboard = () => {
     }
   };
 
-  // Helper function to parse items_summary
-  const parseItemsSummary = (itemsSummary) => {
-    const items = [];
-    // Remove HTML tags and normalize the string
-    const cleanText = itemsSummary.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    console.log('Clean text for parsing:', cleanText);
-
-    // Parse HTML summary to extract product info
-    // Example: "A업체 - [보장분석] 일반 (서울/인천/경기) (수량: 1, 금액: 80,000원)"
-    const regex = /([^-]+)\s*-\s*\[([^\]]+)\]\s*([^(]+)\s*\(([^)]+)\)\s*\(수량:\s*(\d+),\s*금액:\s*([\d,]+)원\)/g;
-    let match;
-
-    while ((match = regex.exec(cleanText)) !== null) {
-      const [, dbType, category, productName, region, quantity, amount] = match;
-      const parsedItem = {
-        db_type: dbType.trim(),
-        product_name: `[${category.trim()}] ${productName.trim()}`,
-        region: region.trim(),
-        quantity: parseInt(quantity),
-        total_price: parseInt(amount.replace(/,/g, ''))
-      };
-      console.log('Parsed item:', parsedItem);
-      items.push(parsedItem);
-    }
-
-    console.log('Total parsed items:', items.length);
-    return items;
-  };
-
   // Fetch monthly aggregation for applications (including legacy submissions)
   const fetchMonthlyAggregation = async () => {
     try {
       setAggregationLoading(true);
 
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+      const response = await fetch(`${API_BASE_URL}/api/submissions/aggregation`);
 
-      console.log('Date range for aggregation:', { startOfMonth, endOfMonth });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || '집계 데이터를 불러오지 못했습니다.');
+      }
 
-      // Get all submissions for this month
-      const { data: monthlySubmissions, error: submissionsError } = await supabase
-        .from('submissions')
-        .select('*')
-        .gte('created_at', startOfMonth)
-        .lte('created_at', endOfMonth);
-
-      if (submissionsError) throw submissionsError;
-      console.log('Monthly submissions:', monthlySubmissions);
-
-      // Get order items for CONFIRMED submissions only
-      const { data: orderItemsData, error: orderItemsError } = await supabase
-        .from('order_items')
-        .select(`
-          *,
-          submissions!inner (
-            created_at,
-            status
-          )
-        `)
-        .gte('submissions.created_at', startOfMonth)
-        .lte('submissions.created_at', endOfMonth)
-        .eq('submissions.status', 'confirmed'); // Only confirmed submissions
-
-      if (orderItemsError) throw orderItemsError;
-      console.log('Fetched confirmed order items:', orderItemsData);
-
-      // Group by product and region
-      const aggregated = {};
-
-      // Process order_items data (new format)
-      (orderItemsData || []).forEach(item => {
-        // Ensure consistent key format: remove "업체" if it already exists in db_type
-        const dbTypeClean = item.db_type.endsWith('업체') ? item.db_type : `${item.db_type}업체`;
-        const key = `${dbTypeClean} - ${item.product_name}`;
-        console.log('Order item key:', key);
-
-        if (!aggregated[key]) {
-          aggregated[key] = {};
-        }
-        if (!aggregated[key][item.region]) {
-          aggregated[key][item.region] = {
-            quantity: 0,
-            amount: 0
-          };
-        }
-        aggregated[key][item.region].quantity += item.quantity;
-        aggregated[key][item.region].amount += item.total_price;
-      });
-
-      // Process submissions without order_items (legacy format)
-      const submissionsWithOrderItems = new Set(orderItemsData?.map(item => item.submission_id) || []);
-
-      (monthlySubmissions || []).forEach(submission => {
-        // Only process CONFIRMED submissions that don't have order_items
-        if (submission.status === 'confirmed' && !submissionsWithOrderItems.has(submission.id)) {
-          console.log('Processing confirmed legacy submission:', submission.id, submission.items_summary);
-          const parsedItems = parseItemsSummary(submission.items_summary || '');
-
-          parsedItems.forEach(item => {
-            // Ensure consistent key format: remove "업체" if it already exists in db_type
-            const dbTypeClean = item.db_type.endsWith('업체') ? item.db_type : `${item.db_type}업체`;
-            const key = `${dbTypeClean} - ${item.product_name}`;
-            console.log('Legacy item key:', key);
-
-            if (!aggregated[key]) {
-              aggregated[key] = {};
-            }
-            if (!aggregated[key][item.region]) {
-              aggregated[key][item.region] = {
-                quantity: 0,
-                amount: 0
-              };
-            }
-            aggregated[key][item.region].quantity += item.quantity;
-            aggregated[key][item.region].amount += item.total_price;
-          });
-        }
-      });
-
-      console.log('Final aggregated data:', aggregated);
-
-      // Convert to array format for display
-      const result = Object.entries(aggregated).map(([productName, regions]) => ({
-        productName,
-        regions: Object.entries(regions).map(([regionName, data]) => ({
-          regionName,
-          ...data
-        })),
-        totalQuantity: Object.values(regions).reduce((sum, r) => sum + r.quantity, 0),
-        totalAmount: Object.values(regions).reduce((sum, r) => sum + r.amount, 0)
-      }));
-
-      setMonthlyAggregation(result);
+      const data = await response.json();
+      setMonthlyAggregation(data.aggregated || []);
     } catch (err) {
       console.error('Error fetching monthly aggregation:', err);
+      setMonthlyAggregation([]);
     } finally {
       setAggregationLoading(false);
     }
@@ -202,17 +95,23 @@ const AdminDashboard = () => {
   // Update submission status
   const updateStatus = async (id, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('submissions')
-        .update({ status: newStatus })
-        .eq('id', id);
+      const response = await fetch(`${API_BASE_URL}/api/submissions/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || '상태를 변경할 수 없습니다.');
+      }
 
-      // Update local state
+      const { submission } = await response.json();
+
+      // Update local state with response data for consistency
       setSubmissions(prev =>
         prev.map(sub =>
-          sub.id === id ? { ...sub, status: newStatus } : sub
+          sub.id === id ? { ...sub, ...submission } : sub
         )
       );
 
@@ -230,31 +129,25 @@ const AdminDashboard = () => {
     }
 
     try {
-      // First delete related order_items
-      const { error: orderItemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('submission_id', id);
+      const response = await fetch(`${API_BASE_URL}/api/submissions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
 
-      if (orderItemsError) {
-        console.error('Error deleting order items:', orderItemsError);
-        // Continue with submission deletion even if order_items deletion fails
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || '서버 요청에 실패했습니다.');
       }
 
-      // Then delete the submission
-      const { error } = await supabase
-        .from('submissions')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Update local state and refresh aggregation
       setSubmissions(prev => prev.filter(sub => sub.id !== id));
-      fetchMonthlyAggregation(); // Refresh aggregation data
+      fetchMonthlyAggregation();
       alert('신청이 삭제되었습니다.');
     } catch (err) {
-      alert('삭제 실패: ' + err.message);
+      if (err instanceof TypeError) {
+        alert('삭제 실패: 백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+      } else {
+        alert('삭제 실패: ' + err.message);
+      }
     }
   };
 
@@ -314,33 +207,28 @@ const AdminDashboard = () => {
     }
 
     try {
-      // First delete related order_items for all selected submissions
-      const { error: orderItemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .in('submission_id', Array.from(selectedIds));
+      const response = await fetch(`${API_BASE_URL}/api/submissions/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
 
-      if (orderItemsError) {
-        console.error('Error deleting order items:', orderItemsError);
-        // Continue with submission deletion even if order_items deletion fails
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || '서버 요청에 실패했습니다.');
       }
 
-      // Then delete the submissions
-      const { error } = await supabase
-        .from('submissions')
-        .delete()
-        .in('id', Array.from(selectedIds));
-
-      if (error) throw error;
-
-      // Update local state and refresh aggregation
       setSubmissions(prev => prev.filter(sub => !selectedIds.has(sub.id)));
       setSelectedIds(new Set());
       setSelectAll(false);
-      fetchMonthlyAggregation(); // Refresh aggregation data
+      fetchMonthlyAggregation();
       alert(`${selectedIds.size}건의 신청이 삭제되었습니다.`);
     } catch (err) {
-      alert('일괄 삭제 실패: ' + err.message);
+      if (err instanceof TypeError) {
+        alert('일괄 삭제 실패: 백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+      } else {
+        alert('일괄 삭제 실패: ' + err.message);
+      }
     }
   };
 

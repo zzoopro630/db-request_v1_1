@@ -19,6 +19,19 @@ import { Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
+const resolveApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  if (import.meta.env.DEV) return 'http://localhost:3001';
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+  return '';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+
 
 const AnimatedFormField = ({ children }) => (
   <motion.div
@@ -366,7 +379,7 @@ const Index = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:3001/api/send-email', {
+      const response = await fetch(`${API_BASE_URL}/api/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
