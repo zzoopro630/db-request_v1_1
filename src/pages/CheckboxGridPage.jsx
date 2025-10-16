@@ -72,9 +72,12 @@ const CheckboxList = React.memo(({ selections, onCheckboxChange }) => {
       {Object.entries(companyTypes).map(([dbType, types]) => (
         <Card key={dbType} className="overflow-hidden rounded-lg border-2 border-blue-200">
           <div className="p-4 bg-brand-blue">
-            <div className="flex items-center">
-              <h4 className="font-medium text-lg text-white">{dbType}업체</h4>
-              {dbType === 'B' && <span className="ml-2 text-sm text-yellow-400 font-medium">(90년생은 납품하지 않습니다.)</span>}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center">
+                <h4 className="font-medium text-lg text-white">{dbType}업체</h4>
+                {dbType === 'B' && <span className="ml-2 text-sm text-yellow-400 font-medium">(90년생은 납품하지 않습니다.)</span>}
+              </div>
+              <span className="text-sm text-yellow-300 font-medium">모든 DB는 최소 5개부터 신청 가능합니다. (지사 단위 가능, 추가 제한 없음)</span>
             </div>
           </div>
           <div className="p-4 bg-white">
