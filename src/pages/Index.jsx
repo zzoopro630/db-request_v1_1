@@ -48,9 +48,12 @@ const AnimatedFormField = ({ children }) => (
 // 소속 목록
 const affiliations = ["GOAT", "감동", "다올", "다원", "달", "라온", "미르", "베스트", "유럽", "직할", "캐슬", "해성", "혜윰"];
 
+// 직급 목록
+const positions = ["총괄이사", "사업단장", "지점장", "팀장"];
+
 // 2단계: 신청자 정보 입력 컴포넌트
 const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuantityChange, onRemoveItem }) => {
-  const [applicant, setApplicant] = useState({ name: "", affiliation: "", phone: "010-", email: "" });
+  const [applicant, setApplicant] = useState({ name: "", affiliation: "", position: "", phone: "010-", email: "" });
   const [errors, setErrors] = useState({});
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -63,6 +66,8 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
       else if (!value) error = '이름을 입력해주세요.';
     } else if (name === 'affiliation') {
       if (!value) error = '소속을 선택해주세요.';
+    } else if (name === 'position') {
+      if (!value) error = '직급을 선택해주세요.';
     } else if (name === 'phone') {
       if (!/^010-\d{4}-\d{4}$/.test(value)) error = '전화번호 8자리를 모두 입력해주세요.';
     } else if (name === 'email') {
@@ -103,6 +108,11 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
     setErrors(prev => ({ ...prev, affiliation: validateField('affiliation', value) }));
   };
 
+  const handlePositionChange = (value) => {
+    setApplicant(prev => ({ ...prev, position: value }));
+    setErrors(prev => ({ ...prev, position: validateField('position', value) }));
+  };
+
 
 
   const handleFormSubmit = (e) => {
@@ -117,6 +127,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
 
   const isNameValid = applicant.name && !validateField('name', applicant.name);
   const isAffiliationValid = applicant.affiliation && !validateField('affiliation', applicant.affiliation);
+  const isPositionValid = applicant.position && !validateField('position', applicant.position);
   const isPhoneValid = applicant.phone && !validateField('phone', applicant.phone);
   const isEmailValid = applicant.email && !validateField('email', applicant.email);
 
@@ -187,6 +198,27 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
                 {isNameValid && isAffiliationValid && (
                   <AnimatedFormField>
                     <div>
+                      <Label htmlFor="position">직급</Label>
+                      <Select onValueChange={handlePositionChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="직급을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {positions.map(pos => (
+                            <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.position && <p className="text-sm text-red-500 mt-1">{errors.position}</p>}
+                    </div>
+                  </AnimatedFormField>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {isNameValid && isAffiliationValid && isPositionValid && (
+                  <AnimatedFormField>
+                    <div>
                       <Label htmlFor="phone">연락처</Label>
                       <Input id="phone" name="phone" type="tel" inputMode="numeric" placeholder="010-0000-0000" value={applicant.phone} onChange={handleInputChange} />
                       {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
@@ -196,7 +228,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
               </AnimatePresence>
 
               <AnimatePresence>
-                {isNameValid && isAffiliationValid && isPhoneValid && (
+                {isNameValid && isAffiliationValid && isPositionValid && isPhoneValid && (
                   <AnimatedFormField>
                     <div>
                       <Label htmlFor="email">이메일</Label>
@@ -211,7 +243,7 @@ const ApplicantForm = ({ onBack, onSubmit, isSubmitting, selectedItems, onQuanti
             <div className="mt-8 flex justify-between">
               <button type="button" onClick={onBack} className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">이전</button>
               <AnimatePresence>
-                {isNameValid && isAffiliationValid && isPhoneValid && isEmailValid && (
+                {isNameValid && isAffiliationValid && isPositionValid && isPhoneValid && isEmailValid && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <button type="submit" disabled={isSubmitting || totalAmount === 0} className="bg-blue-500 text-white px-6 py-2 rounded-lg shadow-lg hover:bg-blue-600 disabled:bg-gray-400">
                       {isSubmitting ? "신청 접수 중..." : "신청하기"}
