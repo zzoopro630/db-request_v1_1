@@ -15,15 +15,15 @@ import {
 
 const regions = ["서울/인천/경기", "대전/충청", "광주/전남", "전북", "대구/경북", "부산/울산/경남", "강원", "제주"];
 const companyTypes = {
-  A: [{ name: "[보장분석] 일반", price: 80000, description: "'보장분석', '방문상담', '숨은보험금 찾기', '환급금 안내' 등 다양한 컨셉으로 고객과 접촉하여 확보한 DB"  }],
+  A: [{ name: "보장분석/일반", price: 80000, description: "보장분석 / 다양한 연령대 / 3주 이내 납품 완료 DB"  }],
   B: [
-    { name: "[보장분석] 3주납품", price: 75000, description: "64~89년생 / 다양한 연령대 / 3주 이내 납품 완료 DB" },
-    { name: "[보장분석] 실버", price: 50000, description: "57~63년생 / 보험 니즈 높은 고연령대 DB"  },
-    { name: "[보장분석] 중장년", price: 85000, description: "64~79년생 / 보험 관심 높은 중장년 DB"  },
-    { name: "[보장분석] 여성100%", price: 80000, description: "64~89년생 / 보험 니즈가 높은 여성 DB"  },
-    { name: "[보장분석] 보험료20만원이상", price: 85000, description: "64~89년생 / 보험료 20만원 이상 납입 DB"  },
-    { name: "[보장분석] 방문확정", price: 90000, description: "64~89년생 / 시간,장소 약속이 확정된 DB"  },
-    { name: "[보장분석] 화재보험", price: 75000, description: "64~89년생 / 화재보험(1년/일반화재) 무료가입 멘트로 확보된 DB / 보험료 1만원 설계사 부담"  },
+    { name: "3주납품", price: 75000, description: "보장분석 / 다양한 연령대 / 3주 이내 납품 완료 DB" },
+    { name: "실버", price: 50000, description: "보장분석 / 보험 니즈 높은 고연령대 / 3주 이내 납품 완료 DB"  },
+    { name: "중장년", price: 85000, description: "보장분석 / 보험 관심 높은 중장년 / 3주 이내 납품 완료 DB"  },
+    { name: "여성100%", price: 80000, description: "보장분석 / 보험 니즈가 높은 여성 / 3주 이내 납품 완료 DB"  },
+    { name: "보험료20만원이상", price: 85000, description: "보장분석 / 보험료 20만원 이상 납입 / 3주 이내 납품 완료 DB"  },
+    { name: "방문확정", price: 90000, description: "보장분석 / 시간,장소 약속이 확정된 / 3주 이내 납품 완료 DB"  },
+    { name: "화재보험", price: 75000, description: "보장분석 / 화재보험(1년/일반화재) 무료가입 멘트로 확보된 / 3주 이내 납품 완료 DB / 보험료 1만원 설계사 부담"  },
   ]
 };
 
@@ -77,13 +77,26 @@ const CheckboxList = React.memo(({ selections, onCheckboxChange }) => {
                 <h4 className="font-medium text-lg text-white">{dbType}업체</h4>
                 {dbType === 'B' && <span className="ml-2 text-sm text-yellow-400 font-medium">(90년생은 납품하지 않습니다.)</span>}
               </div>
-              <span className="text-sm text-yellow-300 font-medium">모든 DB는 최소 5개부터 신청 가능합니다. (지사 단위 가능, 추가 제한 없음)</span>
+              {dbType === 'A' && (
+                <div className="text-sm text-yellow-300 font-medium">
+                  <div>- 모든 DB는 최소 5개부터 신청 가능합니다.</div>
+                  <div>- DB는 건별 실시간으로 카카오톡 개별 전달</div>
+                  <div>- 지사 단위 신청 가능, 추가 제한 없음</div>
+                </div>
+              )}
+              {dbType === 'B' && (
+                <div className="text-sm text-yellow-300 font-medium">
+                  <div>- 모든 DB는 최소 5개부터 신청 가능합니다.</div>
+                  <div>- 전산으로 배분, 관리</div>
+                  <div>- 지사 단위 신청 가능, 추가 제한 없음</div>
+                </div>
+              )}
             </div>
           </div>
           <div className="p-4 bg-white">
             {dbType === 'A' && (
               <div className="text-sm text-gray-700 bg-gray-100 p-3 rounded-md mb-4">
-                <p className="font-bold">A/S 불가 항목</p>
+                <p className="font-bold text-red-600">A/S 불가 항목</p>
                 <p>- 단박 거절: 통화 연결 후 바로 상담을 거절하는 경우</p>
                 <p>- 통화 후 부재: 고객과 1번이라도 통화가 된 이후의 장기 부재</p>
                 <p>- 약속 후 노쇼(No-show): 방문 약속을 잡았으나 연락이 두절되거나 고객이 나타나지 않는 경우</p>
@@ -95,7 +108,7 @@ const CheckboxList = React.memo(({ selections, onCheckboxChange }) => {
             )}
             {dbType === 'B' && (
               <div className="text-sm text-gray-700 bg-gray-100 p-3 rounded-md mb-4">
-                 <p className="font-bold">A/S 불가 항목</p>
+                 <p className="font-bold text-red-600">A/S 불가 항목</p>
                  <p>- 장기 부재 및 단박 거절</p>
                  <p>- 상담(TA) 중 고객과 약속이 잡힌 경우</p>
               </div>
@@ -132,7 +145,7 @@ const CheckboxList = React.memo(({ selections, onCheckboxChange }) => {
   );
 });
 
-const CheckboxGridPage = ({ 
+const ProductList = ({ 
   onNext,
   selectedItems,
   selections,
@@ -220,4 +233,4 @@ const CheckboxGridPage = ({
   );
 };
 
-export default CheckboxGridPage;
+export default ProductList;

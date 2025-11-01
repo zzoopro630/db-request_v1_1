@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import CheckboxGridPage from './CheckboxGridPage'; // 1단계 컴포넌트
+import ProductList from './ProductList'; // 1단계 컴포넌트
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -442,7 +442,7 @@ const Index = () => {
   return (
     <div className={step === 3 ? "" : "px-4 py-8"}>
       {step === 1 && (
-        <CheckboxGridPage 
+        <ProductList 
           onNext={handleNext} 
           selectedItems={selectedItems}
           selections={selections}
