@@ -43,7 +43,7 @@ const transporter = nodemailer.createTransport({
 
 app.post('/api/send-email', async (req, res) => {
   // Note: The endpoint is now /api/send-email, which matches the filename.
-  const { name, affiliation, phone, email, items_summary, total, items } = req.body;
+  const { name, affiliation, position, phone, email, items_summary, total, items } = req.body;
   const formattedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   // Save to Supabase first (if available)
@@ -56,6 +56,7 @@ app.post('/api/send-email', async (req, res) => {
           {
             name,
             affiliation,
+            position,
             phone,
             email,
             items_summary,
@@ -107,11 +108,12 @@ app.post('/api/send-email', async (req, res) => {
   const adminMailOptions = {
     from: `"DB 신청폼" <${SENDER_EMAIL}>`,
     to: RECIPIENT_EMAILS.join(','),
-    subject: `[DB신청] ${name} / ${affiliation} / ${formattedDate}`,
+    subject: `[DB신청] ${name} / ${affiliation} / ${position} / ${formattedDate}`,
     html: `
       <h2>새로운 DB 신청이 접수되었습니다.</h2>
       <p><strong>신청자:</strong> ${name}</p>
       <p><strong>소속:</strong> ${affiliation}</p>
+      <p><strong>직급:</strong> ${position}</p>
       <p><strong>연락처:</strong> ${phone}</p>
       <p><strong>이메일:</strong> ${email}</p>
       <hr>
