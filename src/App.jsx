@@ -4,8 +4,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { navItems } from "./nav-items";
 import Index from "./pages/Index";
-import HistoryPage from "./pages/HistoryPage";
-import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 
 const queryClient = new QueryClient();
 
@@ -19,8 +17,6 @@ const App = () => (
             <Route key={to} path={to} element={page} />
           ))}
           <Route path="/" element={<Index />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
